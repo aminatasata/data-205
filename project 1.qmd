@@ -1,0 +1,227 @@
+---
+title: "Data 205 Project 1 "
+author: "Aminata Sata Diatta"
+format: html
+editor: visual
+---
+
+## Introduction:
+
+![](images/Screenshot%202025-02-23%20224445.png)
+
+The data set provides a detailed snapshot of vehicle crashes, offering insights into the circumstances surrounding each incident. From crash types and locations to road conditions and driver behavior, it captures key information to help understand the causes and patterns of accidents. Whether it's a property damage collision, an injury, or a fatal crash, the data covers a wide range of factors including weather, traffic control, and even substance abuse, making it a valuable resource for analyzing road safety and improving traffic management. I will explore this data set to answer several key questions: What are the areas in Montgomery County with the highest number of accidents? What are the agencies responding to accidents the most? And does the weather influence the frequency of accidents? By analyzing the data, I hope to uncover patterns and insights that can help improve road safety and traffic management in the
+
+## load the libraries :
+
+```{r}
+library(tidyverse)
+setwd("C:/Users/satad/Desktop/DATA205")
+crash_reporting<- read_csv("Crash_Reporting_-_Incidents_Data_20250205.csv")
+view(crash_reporting)
+```
+
+**I will start by modifying the name of the column to make my work more easier**.
+
+```{r}
+colnames(crash_reporting) <- gsub(" ", "_", colnames(crash_reporting))  # Replace spaces with underscores
+colnames(crash_reporting) <- tolower(colnames(crash_reporting))
+view(crash_reporting)
+```
+
+**Let's remove NA'S on every columns**
+
+```{r}
+crash_reporting2 <- crash_reporting[!(is.na(crash_reporting$report_number) | 
+                                      is.na(crash_reporting$local_case_number) | 
+                                      is.na(crash_reporting$agency_name) | 
+                                      is.na(crash_reporting$acrs_report_type) | 
+                                      is.na(crash_reporting$route_type) | 
+                                      is.na(crash_reporting$lane_direction) | 
+                                      is.na(crash_reporting$lane_type) | 
+                                      is.na(crash_reporting$number_of_lanes) | 
+                                      is.na(crash_reporting$direction) | 
+                                      is.na(crash_reporting$distance) | 
+                                      is.na(crash_reporting$distance_unit) | 
+                                      is.na(crash_reporting$road_grade) | 
+                                      is.na(crash_reporting$road_name) | 
+                                      is.na(crash_reporting$municipality) | 
+                                      is.na(crash_reporting$at_fault) | 
+                                      is.na(crash_reporting$collision_type) | 
+                                      is.na(crash_reporting$weather) | 
+                                      is.na(crash_reporting$surface_condition) | 
+                                      is.na(crash_reporting$light) | 
+                                      is.na(crash_reporting$traffic_control) | 
+                                      is.na(crash_reporting$driver_substance_abuse) | 
+                                      is.na(crash_reporting$first_harmful_event) | 
+                                      is.na(crash_reporting$second_harmful_event) | 
+                                      is.na(crash_reporting$junction) | 
+                                      is.na(crash_reporting$intersection_type) | 
+                                      is.na(crash_reporting$road_alignment) | 
+                                      is.na(crash_reporting$road_condition) | 
+                                      is.na(crash_reporting$road_division) | 
+                                      is.na(crash_reporting$latitude) | 
+                                      is.na(crash_reporting$longitude) | 
+                                        is.na(crash_reporting$weather) |
+                                      is.na(crash_reporting$location)), ]
+View(crash_reporting2)
+```
+
+## calculate the number of accident that happens
+
+```{r}
+crash_reporting3 <- crash_reporting2 |>
+select(`report_number`,`agency_name`)
+view(crash_reporting3)
+
+```
+
+## To find which agencie is the more active in montgomery county, let's start by just focusing on the "agency" and the " report accident:
+
+### Count the occurences of each agency
+
+```{r}
+library(ggplot2)
+
+agency_counts <- table(crash_reporting3$agency_name)
+agency_df <- as.data.frame(agency_counts)
+colnames(agency_df) <- c("agency_name", "report_number")
+view(agency_df)
+```
+
+## Visualisation1: Bar plot
+
+```{r}
+ggplot(agency_df, aes(x = reorder(agency_name, -report_number), y = report_number)) + 
+  geom_bar(stat = "identity", fill = "steelblue") + 
+  labs(title = "Agencies Responding the Most to Accidents", 
+       x = "Agency Name", y = "Number of Accidents") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  ylim(0, max(agency_df$report_number) * 1.1)
+```
+
+## Comments
+
+### Analysis :
+
+The bar chart shows the number of accidents reported by different police agencies in Maryland. The Montgomery County Police Department has the highest number followed by Rockville Police Department and Gaithesburg Police Department.Mc park and Takoma Park police did not have significant numbers of accident.
+
+### Interpretation:
+
+This suggests that Montgomery County is a busy area with a high number of vehicles, leading to more accidents. In contrast, Gaithersburg Police and Rockville Police report much lower numbers, likely because these cities have smaller populations and less traffic. Takoma Park Police and MCPARK have the lowest accident counts, possibly due to fewer roads or stricter traffic rules in those areas. The data shows that larger and more crowded areas tend to have more accidents, while smaller towns and parks have fewer.
+
+## Visualisation 2: Heatmap
+
+```{r}
+agency_weather_counts <- crash_reporting2 %>%
+  count(`route_type`, `weather`)  
+
+ggplot(agency_weather_counts, aes(x = `route_type`, y = `weather`, fill = n)) +
+  geom_tile() +
+  scale_fill_gradient(low = "green", high = "red") +
+  labs(title = "Heatmap of number of accidents by Route Type and Weather",
+       x = "Route Type", y = "Weather", fill = "Number of Incidents") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+## Comments :
+
+### Analysis :
+
+The heatmap shows the number of accidents under different weather conditions. The colors represent the frequency of incidents, with green indicating fewer accidents and red showing a high number. The most accidents happen when the weather is "Clear," while other conditions like "Rain," "Fog," "Snow," or "Sleet" have fewer incidents.
+
+### Interpretation :
+
+This graph suggests that weather is not the main reason for accidents in Montgomery County. If bad weather were a major cause, we would see more accidents in "Rainy," "Snowy," or "Foggy" conditions. Instead, most crashes happen when the weather is clear, meaning other factor like driver behavior, road conditions, or traffic levels are likely more important in causing accidents.
+
+### rename the column crash_date to make it easy
+
+```{r}
+crash_reporting4 <- crash_reporting2 %>%
+  rename(crash_date_time = `crash_date/time`)
+view(crash_reporting4)
+```
+
+**Convert 'crash_date_time' to datetime format**
+
+```{r}
+library(lubridate)
+crash_reporting5 <- crash_reporting4 %>%
+  mutate(crash_date_time = mdy_hms(crash_date_time), 
+    Date = format(crash_date_time, "%m/%d/%Y"),  
+    Time = format(crash_date_time, "%I:%M:%S %p"))  
+view(crash_reporting5)
+```
+
+**Extract the hour (ignoring minutes & seconds)**
+
+```{r}
+crash_reporting5 <- crash_reporting5 %>%
+  mutate(Hour = format(ymd_hms(paste("2000-01-01", Time)), "%H")) 
+```
+
+```{r}
+library(dplyr)
+library(lubridate)
+
+crash_reporting5 <- crash_reporting5 %>%
+  mutate(Hour = format(ymd_hms(paste("2000-01-01", Time)), "%I %p"))  
+
+```
+
+**Count the number of accidents per hour**
+
+```{r}
+hourly_accidents <- crash_reporting5 %>%
+  group_by(Time) %>%
+  summarise(Accident_Count = n()) %>%
+  arrange(Time)
+```
+
+## Visualisation 3: Line Graph
+
+```{r}
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+crash_reporting5 <- crash_reporting5 %>%
+  mutate(Time = hms(Time))  
+
+# Extract hour in 12-hour format (AM/PM)
+crash_reporting5 <- crash_reporting5 %>%
+  mutate(Hour = format(ymd_hms(paste("2000-01-01", Time)), "%I %p"))
+
+hourly_accidents <- crash_reporting5 %>%
+  group_by(Hour) %>%
+  summarise(Accident_Count = n()) %>%
+  arrange(Hour)
+
+ggplot(hourly_accidents, aes(x = Hour, y = Accident_Count, group = 1)) +
+  geom_line(color = "blue", size = 1) + 
+  geom_point(color = "red", size = 2) + 
+  labs(title = "Accidents by Hour of the Day",
+       x = "Time of Day (12-hour format)",
+       y = "Number of Accidents") +
+  theme_minimal()
+
+```
+
+## Comments:
+
+### Analysis:
+
+The graph represents the number of accidents in Montgomery County from midnight 1am to 12PM. The x-axis shows the time of day, while the y-axis represents the number of accidents. The blue line connects the data points, and the red dots highlight the exact values. From the graph, we can see that the number of accidents is low between 1 am to 4am but starts increasing until 7 am the day .
+
+### Interpretation:
+
+The number of accidents is lowest between 1 AM and 4 AM, which makes sense because most people are asleep, and there is very little traffic on the roads. However, as the morning begins, accidents start to rise from 4 AM to 8 AM, which is when people are commuting to work. The highest number of accidents occurs between 4 Am to 8 Am This is the most dangerous time to be on the road due to heavy traffic and increased chances of collisions. After 9 PM, the number of accidents begins to drop as traffic reduces. This pattern shows that rush hours in the morning isthe most time that accident happens. Drivers should be extra cautious during these periods to stay safe on the road.
+
+## Conclusion:
+
+In Montgomery County, vehicle crash data reveals that the Montgomery County Police Department responds to the highest number of accidents, followed by the Rockville and Gaithersburg Police Departments, while smaller agencies like McPark and Takoma Park report fewer incidents. Weather conditions seem to have minimal impact on accident frequency, as most crashes occur during clear weather, suggesting other factors like traffic, road conditions, and driver behavior play a more significant role. Additionally, the data shows that accidents are most frequent during morning rush hours, particularly between 4 AM and 8 AM, indicating that congested traffic times are the most dangerous. This highlights the need for enhanced road safety measures, particularly during peak traffic periods, to mitigate accidents in the county.
+
+Source :
+
+Data sources : data montgomery ​
+
+Url: :   <https://data.montgomerycountymd.gov/Public-Safety/Crash-Reporting-Incidents-Data/bhju-22kf/about_data>​
