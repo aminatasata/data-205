@@ -1,0 +1,521 @@
+---
+title: "project 1 part 2"
+author: "Aminata Diatta"
+format: html
+editor: visual
+---
+
+## 
+
+## Introduction :
+
+The data sets I chose contain details about crashes reported in Montgomery County. The first data set has over 100,000 entries with 39 columns, including both categorical and numerical variables. The second data set is similar but focuses only on non-motorists. I included non-motorists because, while drivers face risks, pedestrians and cyclists are also exposed to accidents. To better understand these two data sets, I decided to combine them. This combined data set will help answer key questions for my project.
+
+## Join dataset Crash reporting and
+
+```{r}
+library(tidyverse)
+library(dplyr)
+```
+
+## load datasets
+
+```{r}
+crash_rep <- read.csv("C:/Users/satad/Downloads/Crash_Reporting_-_Drivers_Data_20250318.csv")
+non_motorists <- read.csv("C:/Users/satad/Downloads/Crash_Reporting_-_Non-Motorists_Data_20250318 (1).csv")
+
+```
+
+```{r}
+colnames(crash_rep)
+colnames(non_motorists)
+
+```
+
+### Perform an inner join to combine the datasets on "Report.Number"
+
+```{r}
+combined_data <- inner_join(crash_rep, non_motorists, by = "Report.Number")
+View(combined_data)
+
+```
+
+## Install packages, and load libraries
+
+```{r}
+install.packages("dplyr")
+install.packages("ggplot2")
+install.packages("stats")
+
+# Load libraries
+library(dplyr)
+library(ggplot2)
+library(stats)
+
+```
+
+```{r}
+# Check data structure
+str(combined_data)
+
+# Summarize the data
+summary(combined_data)
+
+
+```
+
+```{r}
+
+# Function to rename columns
+rename_columns <- function(name) {
+  name <- gsub("\\.", "_", name)   # Replace "." with "_"
+  name <- gsub("_x$", "1", name)   # Replace "_x" with "1"
+  name <- gsub("_y$", "2", name)   # Replace "_y" with "2"
+  tolower(name)                    # Convert to lowercase
+}
+
+# Apply the renaming function to column names
+colnames(combined_data) <- sapply(colnames(combined_data), rename_columns)
+
+# Check new column names
+colnames(combined_data)
+
+```
+
+```{r}
+view(combined_data)
+```
+
+## **1- Is there a relationship between weather conditions and the likelihood of severe injury in a crash?**
+
+```{r}
+str(combined_data$injury_severity1)  
+table(combined_data$injury_severity1)  # Check unique values  
+
+```
+
+```{r}
+combined_data$injury_severity1 <- tolower(combined_data$injury_severity1)  # Convert to lowercase
+combined_data$injury_severity1 <- trimws(combined_data$injury_severity1)  # Remove extra spaces
+
+# Check unique values again
+table(combined_data$injury_severity1)
+
+```
+
+```{r}
+combined_data$injury_severity1 <- factor(combined_data$injury_severity1, 
+                                         levels = c("no apparent injury", 
+                                                    "possible injury", 
+                                                    "suspected minor injury", 
+                                                    "suspected serious injury"), 
+                                         ordered = TRUE)
+
+```
+
+```{r}
+combined_data$injury_severity_binary <- ifelse(combined_data$injury_severity1 == "SEVERE INJURY", 1, 0)
+```
+
+Recoding Injury Severity into a binary variable (0 = non-severe, 1 = severe) simplifies the analysis and helps in modeling. It allows us to focus on factors contributing to severe injuries and improves the accuracy of statistical.
+
+```{r}
+# Perform logistic regression with weather conditions as predictor
+log_reg_model <- glm(injury_severity_binary ~ weather1, 
+                     data = combined_data, 
+                     family = binomial)
+
+# Display the model summary
+summary(log_reg_model)
+
+```
+
+## Comments :
+
+The model did not converge, meaning it struggled to find a reliable relationship between weather conditions and injury severity. The extremely large standard errors and near-zero estimates suggest possible data issues, such as low variation in injury severity or highly imbalanced weather categories.
+
+## Check the unique levels of injury_severity1
+
+```{r}
+levels(combined_data$injury_severity1)
+
+```
+
+## Graph 1 : bar plot of injury severity by weather condition
+
+```{r}
+ggplot(combined_data, aes(x = weather1, fill = injury_severity1)) +
+  geom_bar(position = "fill") +  # Show the proportions of each injury type
+  labs(title = "Injury Severity by Weather Condition",
+       x = "Weather Condition",
+       y = "Proportion of Injury Severity") +
+  scale_fill_manual(values = c("no apparent injury" = "lightblue", 
+                               "possible injury" = "yellow", 
+                               "suspected minor injury" = "orange",
+                               "suspected serious injury" = "red")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+The analysis of the relationship between weather conditions and injury severity shows that certain weather factors seem to have an impact on the likelihood of severe injuries in crashes. The logistic regression model, which examined weather conditions as a predictor, found that weather conditions like "Clear," "Cloudy," and "Rain" were among the most frequently occurring. However, the results show that none of these weather conditions were statistically significant in predicting severe injury severity, as indicated by the high p-values in the model. This suggests that other factors, such as driver behavior or road conditions, may be more influential in determining injury severity than weather alone. Therefore, while weather conditions are important, they may not be the primary cause of severe injuries in crashes.
+
+## Check unique values in the RelatedNonMotorist column
+
+```{r}
+# Check unique values in the Related.Non.Motorist column
+unique(combined_data$related_non_motorist2)
+
+```
+
+## Count the frequency of each type of non-motorist
+
+```{r}
+table(combined_data$related_non_motorist2)
+
+```
+
+## Create a new column indicating if it is a driver or non-motorist
+
+```{r}
+combined_data$person_type <- ifelse(!is.na(combined_data$injury_severity1), "Driver", "Non-motorist")
+
+```
+
+### **2- Do crashes that occur at night or in low light conditions result in more severe injuries?**
+
+```{r}
+combined_data <- combined_data %>%
+  mutate(light1 = tolower(light1))
+
+```
+
+```{r}
+library(ggplot2)
+
+# Create a violin plot for light conditions vs. injury severity
+ggplot(combined_data, aes(x = light1, y = as.numeric(injury_severity_binary))) +
+  geom_violin(fill = "skyblue", alpha = 0.7) + 
+  geom_jitter(width = 0.2, alpha = 0.4, color = "purple") +  
+  labs(title = "Injury Severity by Light Condition",
+       x = "Light Condition",
+       y = "Injury Severity (0 = Non-severe, 1 = Severe)") +
+  theme_minimal() +
+  coord_flip()  # Flip for better readability
+
+```
+
+## Comments :
+
+The graph shows that severe injuries happen most when daylight or streetlights are on. Fewer accidents happen in complete darkness. However, some neighborhoods do not have streetlights at night, which is normal. At night, most people are asleep, so there are fewer drivers on the road. Around 7 AM and in the evening, when traffic is heavy, accidents may increase due to rush hour. This pattern matches real-life situations, as severe accidents mostly happen during the day and early evening.
+
+```{r}
+combined_data$related_non_motorist2 <- tolower(combined_data$related_non_motorist2)
+
+```
+
+```{r}
+combined_data$non_motorist_group <- case_when(
+  str_detect(combined_data$related_non_motorist2, "pedestrian") ~ "Pedestrian",
+  str_detect(combined_data$related_non_motorist2, "bicyclist|cyclist|pedalcyclist") ~ "Bicyclist",
+  str_detect(combined_data$related_non_motorist2, "scooter") ~ "Scooter",
+  str_detect(combined_data$related_non_motorist2, "wheelchair") ~ "Wheelchair",
+  str_detect(combined_data$related_non_motorist2, "other") ~ "Other",
+  TRUE ~ "Unknown"
+)
+
+```
+
+```{r}
+table(combined_data$non_motorist_group, combined_data$weather1)
+
+```
+
+### TEST 2: CHI-SQUARE TEST
+
+```{r}
+weather_crash_table <- table(combined_data$weather1, combined_data$non_motorist_group)
+chisq.test(weather_crash_table)
+
+```
+
+p-value \< 2.2e-16: Since the p-value is extremely small (less than 0.05), we reject the null hypothesis, meaning weather conditions significantly affect the occurrence of crashes involving non-motorists.
+
+```{r}
+combined_data$weather1 <- toupper(combined_data$weather1)
+
+```
+
+## 3-Do you think weather conditions play a role in accidents involving non-motorists?
+
+```{r}
+library(ggplot2)
+
+ggplot(combined_data, aes(x = weather1, fill = non_motorist_group)) +
+  geom_bar(position = "fill") +
+  theme_minimal() +
+  labs(title = "Proportion of Non-Motorist Crashes by Weather Condition",
+       x = "Weather Condition",
+       y = "Proportion of Crashes",
+       fill = "Non-Motorist Type") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+```
+
+## Comments :
+
+The graph shows that pedestrians are most at risk of accidents. People outside, no matter the type of accident, are more exposed. After pedestrians, bicyclists are also at high risk, which is not surprising. The roads they use make them more vulnerable to crashes.
+
+## 4- How does the vehicle model affect the likelihood of a crash occuring under different speed limits ?
+
+```{r}
+# Create a stacked bar plot to visualize the number of crashes by vehicle model and speed limit
+ggplot(combined_data %>%
+         filter(vehicle_make %in% c("TOYOTA", "GMC", "FORD", "CHEVROLET", "DODG", "LEXUS")),
+       aes(x = vehicle_make, fill = as.factor(speed_limit))) +
+  geom_bar() +
+  labs(title = "Stacked Number of Crashes by Vehicle Model and Speed Limit",
+       x = "Vehicle Make",
+       y = "Number of Crashes",
+       fill = "Speed Limit") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +  # Rotate x-axis labels
+  theme_minimal()
+
+
+```
+
+## Comments :
+
+It is s not surprising that Toyota has the highest number of accidents. This is not because Toyota vehicles are inherently more prone to accidents, but because they are more commonly owned in Maryland. Many adults recommend Toyotas to teenagers, which likely increases the number of these vehicles on the road. On the other hand, cars like Dodge and Lexus are less likely to be involved in accidents simply because fewer people drive them.
+
+### 5-Are there specific areas with a high concentration of crashes involved non-motorists?
+
+```{r}
+# Filter non-motorist crashes (e.g., pedestrians, cyclists)
+non_motorist_crashes <- combined_data %>%
+  filter(!is.na(related_non_motorist1)) %>%
+  group_by(location1) %>%
+  summarise(non_motorist_count = n())
+
+# Filter driver crashes
+driver_crashes <- combined_data %>%
+  filter(is.na(related_non_motorist1)) %>%
+  group_by(location1) %>%
+  summarise(driver_count = n())
+
+```
+
+```{r}
+# Merge non-motorist and driver crashes by location
+crash_counts <- merge(non_motorist_crashes, driver_crashes, by = "location1", all = TRUE)
+crash_counts[is.na(crash_counts)] <- 0  # Replace NAs with 0
+
+```
+
+```{r}
+# Create a heatmap for non-motorist crashes 
+ggplot(combined_data, aes(x = longitude1, y = latitude1)) +
+  geom_bin2d(bins = 30) +  # Adjust the number of bins for heatmap
+  scale_fill_gradientn(colors = c("pink", "yellow", "blue", "black")) +  # Custom colors
+  labs(title = "Heatmap of Non-Motorist Crash Locations",
+       x = "Longitude",
+       y = "Latitude",
+       fill = "Crash Density") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
+
+
+```
+
+## Comments :
+
+This heatmap visualizes the density of non-motorist crashes based on their geographic locations, using longitude and latitude coordinates. The data is divided into 30 bins, where each bin represents a specific area, and the crash density is color-coded. The gradient moves from pink for lower-density areas to black for the highest crash concentrations, with yellow and blue in between. This allows for a clear identification of high-risk areas where non-motorist accidents frequently occur. The plot is styled with a minimal theme for clarity, and the title is centered and bolded to enhance readability.
+
+In addition, when we located on a real map , this location is Rockville. So the city where non-motorist are the most expose to crashes is Rockville
+
+### 6- How does the presence of alcohol or drugs affect crash severity for drivers and non-motorists?
+
+```{r}
+# Check unique values in the driver substance column
+unique(combined_data$driver_substance_abuse1)
+
+# Check unique values in the non-motorist substance column
+unique(combined_data$non_motorist_substance_abuse1)
+
+```
+
+```{r}
+# Check the frequency of substances for drivers
+table(combined_data$driver_substance_abuse1)
+
+# Check the frequency of substances for non-motorists
+table(combined_data$non_motorist_substance_abuse1)
+
+```
+
+## Prepare the data for logistic regression for drivers
+
+```{r}
+
+combined_data$driver_substance_binary <- ifelse(combined_data$driver_substance_abuse1 %in% c("Alcohol", "Drugs"), 1, 0)
+
+# For non-motorists
+combined_data$non_motorist_substance_binary <- ifelse(combined_data$non_motorist_substance_abuse1 %in% c("Alcohol", "Drugs"), 1, 0)
+
+# remove na
+combined_data_cleaned <- combined_data[!is.na(combined_data$injury_severity1) & 
+                                         !is.na(combined_data$driver_substance_binary) & 
+                                         !is.na(combined_data$non_motorist_substance_binary), ]
+
+```
+
+## logistic regression for driver_substance_abuse
+
+```{r}
+driver_model <- glm(injury_severity1 ~ driver_substance_binary , 
+                    data = combined_data, 
+                    family = binomial)
+summary(driver_model)
+
+```
+
+## Comments :
+
+after calculating the coefficient I could find any result. It may be due do N/A that could not remove.
+
+```{r}
+# Logistic regression for non-motorist substance abuse and injury severity
+non_motorist_model <- glm(injury_severity1 ~ non_motorist_substance_binary,
+                          data = combined_data, 
+                          family = binomial)
+summary(non_motorist_model)
+
+```
+
+## 7-Are we able to determinate the agency that respond the most by only looking at a map?
+
+```{r}
+# Install the necessary package if not already installed
+install.packages("leaflet", repos = "https://cloud.r-project.org/")
+chooseCRANmirror(graphics = FALSE, ind = 1) # This sets the CRAN mirror
+install.packages("leaflet")
+
+# Load the leaflet package
+library(leaflet)
+
+library(dplyr)
+
+# Create a cleaned dataset for driver-related crashes
+driver_data <- combined_data %>%
+  filter(!is.na(latitude1) & !is.na(longitude1)) %>%
+  select(local_case_number1, location1, latitude1, longitude1)
+
+# Create a cleaned dataset for non-motorist-related crashes
+non_motorist_data <- combined_data %>%
+  filter(!is.na(latitude2) & !is.na(longitude2)) %>%
+  select(local_case_number2, location2, latitude2, longitude2)
+
+# Create a leaflet map for visualization
+leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap tiles
+  addCircles(data = driver_data, lat = ~latitude1, lng = ~longitude1,
+             color = "blue", radius = 50, popup = ~paste("Driver Accident: ", local_case_number1)) %>%
+  addLegend("bottomright", colors = c("blue", "red"), labels = c("Driver Accidents", "Non-Motorist Accidents"),
+            title = "Accident Type")
+
+```
+
+```{r}
+unique(combined_data$agency_name1)
+
+```
+
+```{r}
+# Define colors for the agencies (based on their names)
+agency_colors <- c(
+  "Gaithersburg Police Depar" = "yellow", 
+  "Montgomery County Police" = "green", 
+  "Rockville Police Departme" = "purple", 
+  "Takoma Park Police Depart" = "orange", 
+  "Maryland-National Capital" = "red", 
+  "MONTGOMERY" = "pink", 
+  "ROCKVILLE" = "grey", 
+  "MCPARK" = "lightblue", 
+  "GAITHERSBURG" = "blue", 
+  "TAKOMA" = "white"
+)
+
+# Create a cleaned dataset for driver-related crashes with agency information
+driver_data <- combined_data %>%
+  filter(!is.na(latitude1) & !is.na(longitude1)) %>%
+  select(local_case_number1, location1, latitude1, longitude1, agency_name1)
+
+# Create a cleaned dataset for non-motorist-related crashes with agency information
+non_motorist_data <- combined_data %>%
+  filter(!is.na(latitude2) & !is.na(longitude2)) %>%
+  select(local_case_number2, location2, latitude2, longitude2, agency_name1)
+
+# Create a leaflet map for visualization with agency-based coloring
+leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap tiles
+  addCircles(data = driver_data, lat = ~latitude1, lng = ~longitude1,
+             color = ~agency_colors[agency_name1], radius = 50, 
+             popup = ~paste("Driver Accident: ", local_case_number1, "<br>Agency: ", agency_name1)) %>%
+  addCircles(data = non_motorist_data, lat = ~latitude2, lng = ~longitude2,
+             color = ~agency_colors[agency_name1], radius = 50, 
+             popup = ~paste("Non-Motorist Accident: ", local_case_number2, "<br>Agency: ", agency_name1)) %>%
+  addLegend("bottomright", colors = c("yellow", "green", "purple", "orange", "red", 
+                                      "pink", "grey", "lightblue", "blue", "white"), 
+            labels = c("Gaithersburg Police", "Montgomery County Police", "Rockville Police", 
+                       "Takoma Park Police", "Maryland-National Capital", "MONTGOMERY", 
+                       "ROCKVILLE", "MCPARK", "GAITHERSBURG", "TAKOMA"),
+            title = "Agency")
+
+```
+
+### 8- What factors influence the frequency of accidents at specific road type?
+
+```{r}
+library(dplyr)
+
+# Create a new column for accident count per road type
+accident_count_by_road <- combined_data %>%
+  group_by(route_type1) %>%
+  summarize(accident_count = n())
+
+# Check the structure and data
+head(accident_count_by_road)
+
+```
+
+```{r}
+# Chi-Square Test for association between Road Type and Weather
+weather_road_table <- table(combined_data$route_type1, combined_data$weather1)
+
+# Perform Chi-Square Test
+chi_square_result <- chisq.test(weather_road_table)
+print(chi_square_result)
+
+```
+
+```{r}
+# Check the expected frequencies
+chi_square_result <- chisq.test(weather_road_table)
+chi_square_result$expected
+
+```
+
+Comments :
+
+The Chi-squared test shows that weather conditions and road type affect the number of accidents, as the p-value is very small. This means the relationship is proved . However, there is a warning saying the test may not be accurate. This can happen if some road types or weather conditions have very few accidents, making the data uneven.
+
+## Conclusion : 
+
+This data set, which included crash reports for both drivers and non-motorists, allowed me to explore various aspects of accidents and gain a deeper understanding of their impact. Through my analysis, I was able to answer several of my questions, although some remain unanswered. My goal was to highlight the significant risks that crashes pose to people’s lives, not only for drivers and passengers but also for pedestrians and other non-motorists who may become victims of road accidents. Additionally, I aimed to raise awareness about the dangers of substances such as alcohol and drugs, which can impair judgment and reaction times, ultimately leading to tragic consequenceseyond the statistics and numbers, this data set made me realize that accidents are more than just events recorded in reports they represent real people, families, and communities affected by tragedy. It made me think beyond what we see on the surface and consider the long-term emotional, physical, and financial consequences that accidents can have. Understanding these patterns is crucial in working toward safer roads and encouraging responsible behavior among all road users. This research reinforced the importance of preventive measures and the need for better awareness to reduce accidents and save lives.
+
+Url :
+
+Crash Reporting - Incidents Data at <https://data.montgomerycountymd.gov/Public-Safety/Crash-Reporting-Incidents-Data/bhju-22kf>\
+Crash Reporting - Non-Motorists Data at <https://data.montgomerycountymd.gov/Public-Safety/Crash-Reporting-Non-Motorists-Data/n7fk-dce5>
