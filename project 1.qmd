@@ -11,7 +11,7 @@ editor: visual
 
 The data sets I chose contain details about crashes reported in Montgomery County. The first data set has over 100,000 entries with 39 columns, including both categorical and numerical variables. The second data set is similar but focuses only on non-motorists. I included non-motorists because, while drivers face risks, pedestrians and cyclists are also exposed to accidents. To better understand these two data sets, I decided to combine them. This combined data set will help answer key questions for my project.
 
-## load the libraries and data sets 
+## load the libraries and data sets
 
 ```{r}
 library(tidyverse)
@@ -49,4 +49,371 @@ library(stats)
 
 ```
 
-## 
+## Rename my columns :
+
+```{r}
+rename_columns <- function(name) {
+  name <- gsub("\\.", "_", name)  
+  name <- gsub("_x$", "1", name)   
+  name <- gsub("_y$", "2", name)   
+  tolower(name)                    
+  }
+  colnames(combined_data) <- sapply(colnames(combined_data), rename_columns)
+
+View(combined_data)
+```
+
+## **1- Is there a relationship between weather conditions and the likelihood of severe injury in a crash?**
+
+```{r}
+table(combined_data$weather1)
+table(combined_data$injury_severity1)
+
+```
+
+## Remove majuscule and n/a:
+
+```{r}
+combined_data$weather_clean <- tolower(combined_data$weather1)
+combined_data$weather_clean <- trimws(combined_data$weather1)
+# Apply both tolower and trimws CORRECTLY
+combined_data$weather_clean <- tolower(trimws(combined_data$weather1))
+
+# Now recode the values properly
+combined_data$weather_clean <- dplyr::recode(combined_data$weather_clean,
+  "clear" = "CLEANr",
+  "cloudy" = "CLOUDY",
+  "rain" = "RAIN",
+  "raining" = "RAIN",
+  "snow" = "SNOW",
+  "blowing snow" = "SNOW",
+  "fog, smog, smoke" = "FOG",
+  "foggy" = "FOG",
+  "severe winds" = "WIND",
+  "freezing rain or freezing drizzle" = "FREEZING RAIN",
+  "sleet" = "FREEZING RAIN",
+  "wintry mix" = "FREEZING RAIN",
+  "n/a" = NA_character_,
+  "unknown" = NA_character_,
+  .default = "Other"
+)
+
+
+
+```
+
+```{r}
+
+combined_data <- combined_data[!is.na(combined_data$weather_clean), ]
+```
+
+```{r}
+combined_data$injury_clean <- tolower(combined_data$injury_severity1)
+combined_data$injury_clean <- trimws(combined_data$injury_clean)
+
+combined_data$injury_clean <- dplyr::recode(combined_data$injury_clean,
+  "no apparent injury" = "No Injury",
+  "possible injury" = "Possible",
+  "suspected minor injury" = "Minor",
+  "suspected serious injury" = "Serious",
+  .default = "Other"
+)
+
+```
+
+```{r}
+table(combined_data$weather_clean, combined_data$injury_clean)
+
+```
+
+# Create the bar plot that represent injury severity by wheather condition
+
+```{r}
+
+
+library(ggplot2)
+
+# Create the bar plot
+ggplot(combined_data, aes(x = weather_clean, fill = injury_clean)) +
+  geom_bar(position = "fill") +  # Makes it proportional (stacked by percentage)
+  labs(
+    title = "Injury Severity by Weather Condition",
+    x = "Weather Condition",
+    y = "Proportion",
+    fill = "Injury Severity"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+Interpretation : based on this table, we know that the number of accident is not 100% due to wheather. The number of accident during regular time happen are no injury. Usually, the serious accident happens during freezing rakn period. In sum the wheather is not the cause of most accident.
+
+## 2- Do crashes that occur at night or in low light conditions result in more injuries ?
+
+Before we do that, we will start to a binary column where 1 means that the injury was severe, and 0 when the injury is minor
+
+```{r}
+combined_data$injury_severity_binary <- ifelse(combined_data$injury_clean == "Serious", 1, 0)
+table(combined_data$injury_clean)
+```
+
+### removing lowercase:
+
+```{r}
+combined_data <- combined_data %>%
+  mutate(light1 = tolower(light1))
+
+
+```
+
+### Create a violin plot for light conditions vs. injury severity
+
+```{r}
+
+combined_data$injury_clean <- factor(
+  combined_data$injury_clean,
+  levels = c("No Injury", "Possible", "Minor", "Serious")
+)
+
+ggplot(combined_data, aes(x = light1, y = injury_clean)) +
+  geom_violin(fill = "skyblue", alpha = 0.7, trim = FALSE) +  # violin plot with color
+  geom_jitter(width = 0.1 , alpha = 0.3, color = "darkblue") +  # add individual points
+  labs(
+    title = "Injury Severity by Light Condition",
+    x = "Light Condition",
+    y = "Injury Severity"
+  ) + coord_flip() +
+  theme_dark() 
+```
+
+### Comments :
+
+The violon plot is literraly showing us that even if there a lot of accident , most of them that occurs during daylight are usually with no injury. severe accident happens randomly.In conclusion, the light is not a factor that inquiry severe accident in Montgomery County.
+
+## 3- Do you think wheather condition play a role in an accident involving non-motorists?
+
+```{r}
+table(combined_data$weather2)
+
+```
+
+```{r}
+combined_data$weather2_clean <- tolower(trimws(combined_data$weather2))
+
+```
+
+```{r}
+combined_data$weather2_clean <- recode(combined_data$weather2_clean,
+  "clear" = "CLEAR",
+  "cloudy" = "CLOUDY",
+  "rain" = "RAIN",
+  "raining" = "RAIN",
+  "blowing snow" = "SNOW",
+  "Snow" = "SNOW",
+  "sleet" = "FREEZING RAIN",
+  "freezing rain or freezing drizzle" = "FREEZING RAIN",
+  "foggy" = "FOG",
+  "fog, smog, smoke" = "FOG",
+  "severe winds" = "WIND",
+  "wintry mix" = "FREEZING RAIN",
+  .default = "OTHER")
+```
+
+```{r}
+table(combined_data$related_non_motorist2, combined_data$weather2_clean)
+
+```
+
+### Representation of the number of accident related to non- motorists.
+
+```{r}
+
+non_motorist_weather <- combined_data %>%
+  filter(!is.na(weather2_clean), !is.na(related_non_motorist2)) %>%
+  group_by(weather2_clean) %>%
+  summarise(count = n())
+
+library(jpeg)
+library(grid)
+
+img <- readJPEG("C:/Users/satad/Pictures/Screenshots/car-accident-data205.jpg")
+g <- rasterGrob(img, width = unit(1, "npc"), height = unit(1, "npc"), interpolate = TRUE)
+
+```
+
+```{r}
+ggplot(non_motorist_weather, aes(x = weather2_clean, y = count)) +
+  annotation_custom(g, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
+  geom_col(fill = "darkred", alpha = 0.8) +
+  labs(
+    title = "Non-Motorist Accidents by Weather Condition",
+    x = "Weather Condition",
+    y = "Number of Accidents"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.background = element_rect(fill = NA),
+    plot.background = element_rect(fill = NA)
+  )
+
+```
+
+```{r}
+# Simplify to yes/no: was a non-motorist involved
+combined_data$non_motorist_involved <- ifelse(!is.na(combined_data$related_non_motorist2), "Yes", "No")
+
+# Contingency table
+weather_vs_non_motorist <- table(combined_data$weather2_clean, combined_data$non_motorist_involved)
+
+# Chi-square test
+chisq.test(weather_vs_non_motorist)
+
+```
+
+```{r}
+combined_data$non_motorist_clean <- tolower(trimws(combined_data$related_non_motorist2))
+
+combined_data$non_motorist_clean <- dplyr::recode(combined_data$non_motorist_clean,
+  "pedestrian" = "PEDESTRIAN",
+  "bicyclist" = "BICYCLIST",
+  "cyclist (electric)" = "CYCLIST",
+  "cyclist (non-electric)" = "CYCLIST",
+  "scooter (electric)" = "SCOOTER",
+  "scooter (non-electric)" = "SCOOTER",
+  "wheelchair (electric)" = "WHEELCHAIR",
+  "wheelchair (non-electric)" = "WHEELCHAIR",
+  "machine operator/rider" = "MACHINE OPERATOR",
+  "other" = "OTHER",
+  .default = "OTHER"
+)
+
+```
+
+### Bubble chart 
+
+```{r}
+dot_data <- combined_data %>%
+  filter(!is.na(non_motorist_clean), !is.na(weather2_clean)) %>%
+  group_by(non_motorist_clean, weather2_clean) %>%
+  summarise(count = n(), .groups = "drop")
+ggplot(dot_data, aes(x = weather2_clean, y = non_motorist_clean, size = count, fill = count)) +
+  geom_point(alpha = 0.85, shape = 21, color = "black") + 
+  scale_size_area(max_size = 18) +
+  scale_fill_gradient(low = "beige", high = "orange") +  
+  labs(
+    title = "Non-Motorist Crashes by Weather Condition",
+    x = "Weather Condition",
+    y = "Non-Motorist Type",
+    size = "Crash Count",
+    fill = "Crash Count"
+  ) +
+  theme_classic(base_size = 14) +  # Cleaner, less cluttered theme
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    panel.grid = element_blank(),  # Removes grid lines
+    axis.line = element_line(color = "black")
+  )
+
+```
+
+Interpretation:
+
+Based on this resulkt, we can see that most of the crashes happens where there is pedestrian? Maybe because it is related to speed limit, or pedestrian are not respecting route law.
+
+## 4- How does the vehicle model affect the likelihood of a crash occuring under different speed limits ?
+
+```{r}
+make_speed_data <- combined_data %>%
+  filter(
+    vehicle_make %in% c("TOYOTA", "GMC", "FORD", "CHEVROLET", "DODGE", "LEXUS"),
+    !is.na(speed_limit)
+  ) %>%
+  group_by(vehicle_make, speed_limit) %>%
+  summarise(count = n(), .groups = "drop")
+
+
+```
+
+```{r}
+ggplot(make_speed_data, aes(x = vehicle_make, y = as.factor(speed_limit), fill = count)) +
+  geom_tile(color = "white") +
+  scale_fill_gradient(low = "beige", high = "hotpink") +  # Red tone
+  labs(
+    title = "Heatmap of Vehicle Make vs Speed Limit",
+    x = "Vehicle Make",
+    y = "Speed Limit",
+    fill = "Crash Count"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(face = "bold", hjust = 0.5) , 
+    panel.grid = element_blank()
+)
+
+```
+
+### Comments : 
+
+It is not surprising that Toyota has the highest number of accidents. This is not because Toyota vehicles are inherently more prone to accidents, but because they are more commonly owned in Maryland. Many adults recommend Toyotas to teenagers, which likely increases the number of these vehicles on the road. On the other hand, cars like Dodge and Lexus are less likely to be involved in accidents simply because fewer people drive them.
+
+### 5-Are there specific areas with a high concentration of crashes involved non-motorists ? 
+
+```{r}
+library(dplyr)
+library(plotly)
+
+# Clean the data (remove NAs and ensure numeric values)
+cleaned_data <- combined_data %>%
+  filter(!is.na(longitude1), !is.na(latitude1)) %>%
+  filter(is.numeric(longitude1), is.numeric(latitude1)) %>%
+  mutate(road_name1 = ifelse(is.na(road_name1), "Unknown Road", road_name1))  # Replace NAs with "Unknown Road"
+
+# Make sure you have a Mapbox access token (you can get it from https://www.mapbox.com/)
+mapbox_token <- "YOUR_MAPBOX_ACCESS_TOKEN"
+
+# Interactive map using scattermapbox
+p <- plot_ly(data = cleaned_data, 
+             type = "scattermapbox", 
+             mode = "markers", 
+             lon = ~longitude1, 
+             lat = ~latitude1, 
+             text = ~road_name1, 
+             hoverinfo = "text", 
+             marker = list(size = 5, color = "yellow", opacity = 0.7)) %>%
+  layout(
+    title = "Density of Non-Motorist Crashes by Location",
+    mapbox = list(
+      style = "white-bg", # Choose a map style, e.g., "streets", "light", "dark"
+      center = list(lon = mean(cleaned_data$longitude1), lat = mean(cleaned_data$latitude1)),
+      zoom = 10,
+      accesstoken = mapbox_token
+    )
+  )
+
+# Show the plot
+p
+
+
+```
+
+```{r}
+library(leaflet)
+# Create a leaflet map
+map <- leaflet(data = cleaned_data) %>%
+  addProviderTiles("CartoDB.Positron") %>%  # You can change the style here (e.g., "CartoDB.Positron", "Stamen.Toner", etc.)
+  addMarkers(
+    ~longitude1, ~latitude1,  # Longitude and Latitude from your data
+    popup = ~road_name1,      # Road name will show in popup on hover
+    label = ~road_name1,      # Label will also show on hover
+    clusterOptions = markerClusterOptions()  # Cluster the markers for better visibility
+  ) %>%
+  setView(lng = mean(cleaned_data$longitude1), lat = mean(cleaned_data$latitude1), zoom = 10)  # Center the map
+
+# Show the map
+map
+
+```
