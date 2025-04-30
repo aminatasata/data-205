@@ -129,13 +129,15 @@ table(combined_data$weather_clean, combined_data$injury_clean)
 # Create the bar plot that represent injury severity by wheather condition
 
 ```{r}
-
-
 library(ggplot2)
+
+# Reorder the injury severity levels
+combined_data$injury_clean <- factor(combined_data$injury_clean, 
+                                     levels = c("Serious", "Possible", "Other", "Minor", "No Injury"))
 
 # Create the bar plot
 ggplot(combined_data, aes(x = weather_clean, fill = injury_clean)) +
-  geom_bar(position = "fill") +  # Makes it proportional (stacked by percentage)
+  geom_bar(position = "fill") +
   labs(
     title = "Injury Severity by Weather Condition",
     x = "Weather Condition",
@@ -147,7 +149,7 @@ ggplot(combined_data, aes(x = weather_clean, fill = injury_clean)) +
 
 ```
 
-Interpretation : based on this table, we know that the number of accident is not 100% due to wheather. The number of accident during regular time happen are no injury. Usually, the serious accident happens during freezing rakn period. In sum the wheather is not the cause of most accident.
+Interpretation : based on this table, we know that
 
 ## 2- Do crashes that occur at night or in low light conditions result in more injuries ?
 
@@ -161,67 +163,87 @@ table(combined_data$injury_clean)
 ### removing lowercase:
 
 ```{r}
-combined_data <- combined_data %>%
+combined_data2 <- combined_data %>%
   mutate(light1 = tolower(light1))
 
 
 ```
 
-### Create a violin plot for light conditions vs. injury severity
+### Create a heatmap for light conditions vs. injury severity
 
 ```{r}
+heatmap_data <- combined_data2 %>%
+  count(light1, injury_clean)
 
-combined_data$injury_clean <- factor(
-  combined_data$injury_clean,
-  levels = c("No Injury", "Possible", "Minor", "Serious")
-)
+unique(combined_data2$light1)
 
-ggplot(combined_data, aes(x = light1, y = injury_clean)) +
-  geom_violin(fill = "skyblue", alpha = 0.7, trim = FALSE) +  # violin plot with color
-  geom_jitter(width = 0.1 , alpha = 0.3, color = "darkblue") +  # add individual points
-  labs(
-    title = "Injury Severity by Light Condition",
-    x = "Light Condition",
-    y = "Injury Severity"
-  ) + coord_flip() +
-  theme_dark() 
+
+
 ```
 
-### Comments :
+```{r}
+combined_data$light1_clean <- combined_data2$light1
 
-The violon plot is literraly showing us that even if there a lot of accident , most of them that occurs during daylight are usually with no injury. severe accident happens randomly.In conclusion, the light is not a factor that inquiry severe accident in Montgomery County.
+combined_data$light1_clean <- recode(combined_data$light1_clean,
+  "dark - unknown lighting" = "unknown",
+  "dark - lighted" = "dark lights on",
+  "dark -- unknown lighting" = "unknown" ,
+  "dark - not lighted" = "dark no lights"
+)
+
+combined_data3 <- combined_data %>%
+  filter(light1_clean != "n/a")
+
+table(combined_data$light1_clean)
+
+```
+
+```{r}
+heatmap_data <- combined_data3 %>%
+  count(light1_clean, injury_clean)
+ggplot(heatmap_data, aes(x = light1_clean, y = injury_clean, fill = n)) +
+  geom_tile(color = "black") +
+  scale_fill_gradient(low = "yellow", high = "red") +
+  labs(
+    title = "Heatmap of Injury Severity by Light Condition",
+    x = "Light Condition",
+    y = "Injury Severity",
+    fill = "Count"
+  ) +
+  theme_dark() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 
 ## 3- Do you think wheather condition play a role in an accident involving non-motorists?
 
 ```{r}
-table(combined_data$weather2)
+table(combined_data$weather1)
 
 ```
 
 ```{r}
-combined_data$weather2_clean <- tolower(trimws(combined_data$weather2))
+combined_data$weather1 <- tolower(trimws(combined_data$weather1))
 
-```
-
-```{r}
-combined_data$weather2_clean <- recode(combined_data$weather2_clean,
+combined_data$weather1_clean <- recode(combined_data$weather1,
   "clear" = "CLEAR",
   "cloudy" = "CLOUDY",
   "rain" = "RAIN",
   "raining" = "RAIN",
   "blowing snow" = "SNOW",
   "Snow" = "SNOW",
-  "sleet" = "FREEZING RAIN",
-  "freezing rain or freezing drizzle" = "FREEZING RAIN",
+  "sleet" = "RAIN",
+  "freezing rain or freezing drizzle" = "RAIN",
   "foggy" = "FOG",
   "fog, smog, smoke" = "FOG",
   "severe winds" = "WIND",
-  "wintry mix" = "FREEZING RAIN",
+  "wintry mix" = "RAIN",
   .default = "OTHER")
+table(combined_data$weather1_clean)
+
 ```
 
 ```{r}
-table(combined_data$related_non_motorist2, combined_data$weather2_clean)
+table(combined_data$related_non_motorist2, combined_data$weather1_clean)
 
 ```
 
@@ -230,8 +252,8 @@ table(combined_data$related_non_motorist2, combined_data$weather2_clean)
 ```{r}
 
 non_motorist_weather <- combined_data %>%
-  filter(!is.na(weather2_clean), !is.na(related_non_motorist2)) %>%
-  group_by(weather2_clean) %>%
+  filter(!is.na(weather1_clean), !is.na(related_non_motorist2)) %>%
+  group_by(weather1_clean) %>%
   summarise(count = n())
 
 library(jpeg)
@@ -243,7 +265,7 @@ g <- rasterGrob(img, width = unit(1, "npc"), height = unit(1, "npc"), interpolat
 ```
 
 ```{r}
-ggplot(non_motorist_weather, aes(x = weather2_clean, y = count)) +
+ggplot(non_motorist_weather, aes(x = weather1_clean, y = count)) +
   annotation_custom(g, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
   geom_col(fill = "darkred", alpha = 0.8) +
   labs(
@@ -264,8 +286,7 @@ ggplot(non_motorist_weather, aes(x = weather2_clean, y = count)) +
 # Simplify to yes/no: was a non-motorist involved
 combined_data$non_motorist_involved <- ifelse(!is.na(combined_data$related_non_motorist2), "Yes", "No")
 
-# Contingency table
-weather_vs_non_motorist <- table(combined_data$weather2_clean, combined_data$non_motorist_involved)
+weather_vs_non_motorist <- table(combined_data$weather1_clean, combined_data$non_motorist_involved)
 
 # Chi-square test
 chisq.test(weather_vs_non_motorist)
@@ -278,27 +299,27 @@ combined_data$non_motorist_clean <- tolower(trimws(combined_data$related_non_mot
 combined_data$non_motorist_clean <- dplyr::recode(combined_data$non_motorist_clean,
   "pedestrian" = "PEDESTRIAN",
   "bicyclist" = "BICYCLIST",
-  "cyclist (electric)" = "CYCLIST",
-  "cyclist (non-electric)" = "CYCLIST",
+  "cyclist (electric)" = "BICYCLIST",
+  "cyclist (non-electric)" = "BICYCLIST",
   "scooter (electric)" = "SCOOTER",
   "scooter (non-electric)" = "SCOOTER",
   "wheelchair (electric)" = "WHEELCHAIR",
   "wheelchair (non-electric)" = "WHEELCHAIR",
-  "machine operator/rider" = "MACHINE OPERATOR",
+  "machine operator/rider" = "WHEELCHAIR",
   "other" = "OTHER",
   .default = "OTHER"
 )
 
 ```
 
-### Bubble chart 
+### Bubble chart of non- motorist crash counts by weather condition
 
 ```{r}
 dot_data <- combined_data %>%
-  filter(!is.na(non_motorist_clean), !is.na(weather2_clean)) %>%
-  group_by(non_motorist_clean, weather2_clean) %>%
+  filter(!is.na(non_motorist_clean), !is.na(weather1_clean)) %>%
+  group_by(non_motorist_clean, weather1_clean) %>%
   summarise(count = n(), .groups = "drop")
-ggplot(dot_data, aes(x = weather2_clean, y = non_motorist_clean, size = count, fill = count)) +
+ggplot(dot_data, aes(x = weather1_clean, y = non_motorist_clean, size = count, fill = count)) +
   geom_point(alpha = 0.85, shape = 21, color = "black") + 
   scale_size_area(max_size = 18) +
   scale_fill_gradient(low = "beige", high = "orange") +  
@@ -309,101 +330,368 @@ ggplot(dot_data, aes(x = weather2_clean, y = non_motorist_clean, size = count, f
     size = "Crash Count",
     fill = "Crash Count"
   ) +
-  theme_classic(base_size = 14) +  # Cleaner, less cluttered theme
+  guides(size = "none")  
+  theme_classic(base_size = 14) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
     plot.title = element_text(face = "bold", hjust = 0.5),
-    panel.grid = element_blank(),  # Removes grid lines
-    axis.line = element_line(color = "black")
+    panel.background = element_blank(),
+    plot.background = element_blank(),
+    panel.grid = element_blank(),
+    axis.line = element_blank()
   )
 
 ```
-
-Interpretation:
-
-Based on this resulkt, we can see that most of the crashes happens where there is pedestrian? Maybe because it is related to speed limit, or pedestrian are not respecting route law.
 
 ## 4- How does the vehicle model affect the likelihood of a crash occuring under different speed limits ?
 
 ```{r}
-make_speed_data <- combined_data %>%
-  filter(
-    vehicle_make %in% c("TOYOTA", "GMC", "FORD", "CHEVROLET", "DODGE", "LEXUS"),
-    !is.na(speed_limit)
-  ) %>%
-  group_by(vehicle_make, speed_limit) %>%
-  summarise(count = n(), .groups = "drop")
+unique(combined_data$vehicle_make)
+
+```
+
+```{r}
+combined_data$vehicle_make <- with(combined_data, case_when(
+  vehicle_make %in% c("TOYOTA", "TOYOT", "TOY0TA", "TOYORA", "TOYTOA", "TOYO", "TOYT", "TOOT", "TOYOYA", "TTOYOTA", "TOY") ~ "TOYOTA",
+  vehicle_make %in% c("CHEVROLET", "CHEV", "CHEVY", "CHEVEROLET", "CHEVROLETE", "CHEVORLET", "CEV") ~ "CHEVROLET",
+  vehicle_make %in% c("FORD") ~ "FORD",
+  vehicle_make %in% c("DODGE", "DODG", "DODG3") ~ "DODGE",
+  vehicle_make %in% c("LEXUS", "LEXU", "LEXS", "LEXSUS", "LEX", "LEXIS") ~ "LEXUS",
+  vehicle_make %in% c("HONDA", "HOND", "HONDAA", "IHON") ~ "HONDA",
+  vehicle_make %in% c("HYUNDAI", "HYUN", "HYUNDA", "HYUANDAI", "HUYNDAI", "HYUNDIA", "HYUND", "HYNDAI", "HYUDAI", "HYUNDI") ~ "HYUNDAI",
+  vehicle_make %in% c("NISSAN", "NISS", "NISSIAN", "MISSAN", "NSSAN") ~ "NISSAN",
+  TRUE ~ "OTHER"
+))
 
 
 ```
 
 ```{r}
-ggplot(make_speed_data, aes(x = vehicle_make, y = as.factor(speed_limit), fill = count)) +
+unique(combined_data$vehicle_make)
+
+```
+
+```{r}
+library(plotly)
+# Step 1: Select top 8 vehicle makes (most frequent)
+top_makes <- combined_data %>%
+  count(vehicle_make, sort = TRUE) %>%
+  slice_head(n = 10) %>%
+  pull(vehicle_make)
+
+# Step 2: Prepare data (with min and max year)
+heatmap_data <- combined_data %>%
+  filter(
+    vehicle_make %in% top_makes,
+    !is.na(speed_limit),
+    !is.na(vehicle_year),
+    speed_limit >= 25,
+    vehicle_year <= 2025
+  ) %>%
+  group_by(vehicle_make, speed_limit) %>%
+  summarise(
+    count = n(),
+    min_year = min(vehicle_year),
+    max_year = max(vehicle_year),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    year_range = paste0("Oldest: ", min_year, " | Newest: ", max_year)
+  )
+
+# Step 3: Create base ggplot
+p <- ggplot(heatmap_data, aes(
+  x = factor(speed_limit),
+  y = vehicle_make,
+  fill = count,
+  text = paste("Speed Limit of the area:", speed_limit,
+               "<br>Make:", vehicle_make,
+               "<br>", year_range,
+               "<br>Crash Count:", count)
+)) +
   geom_tile(color = "white") +
-  scale_fill_gradient(low = "beige", high = "hotpink") +  # Red tone
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
   labs(
-    title = "Heatmap of Vehicle Make vs Speed Limit",
-    x = "Vehicle Make",
-    y = "Speed Limit",
+    title = "Crashes by Vehicle Make and Speed Limit",
+    x = "Speed Limit (MPH)",
+    y = "Vehicle Make",
     fill = "Crash Count"
   ) +
-  theme_minimal(base_size = 14) +
+  theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.title = element_text(face = "bold", hjust = 0.5) , 
-    panel.grid = element_blank()
+    plot.title = element_text(hjust = 0.5)
+  )
+
+# Step 4: Convert to interactive Plotly plot
+ggplotly(p, tooltip = "text")
+
+```
+
+### 5-Are there specific areas with a high concentration of crashes involved non-motorists ?
+
+```{r}
+unique(combined_data$related_non_motorist2)
+
+```
+
+```{r}
+
+combined_data4 <- combined_data %>%
+  mutate(
+    related_non_motorist2 = recode(related_non_motorist2,
+                                   "PEDESTRIAN" = "Pedestrian",
+                                   "Pedestrian" = "Pedestrian",
+                                   "BICYCLIST" = "Bicyclist",
+                                   "Cyclist (non-electric)" = "Bicyclist",  
+                                   "Cyclist (Electric)" = "Bicyclist",      
+                                   "Scooter (electric)" = "Scooter",
+                                   "Scooter (non-Electric)" = "Scooter",
+                                   "Wheelchair (electric)" = "Wheelchair",
+                                   "Wheelchair (non-electric)" = "Wheelchair",
+                                   "Unknown Type Of Non-Motorist" = "Unknown",
+                                   "Unknown" = "Unknown",
+                                   "OTHER CONVEYANCE" = "Other",  
+                                   "OTHER" = "Other",
+                                   "MACHINE OPERATOR/RIDER" = "Other",  
+                                   "IN ANIMAL-DRAWN VEH" = "Unknown",  
+                                   "Other Pedestrian (person in a building, skater, personal conveyance, etc.)" = "Pedestrian",  
+                                   "Other Pedestrian (person in a building, skater, personal conveyance, etc.), Pedestrian" = "Pedestrian",  
+                                   "Other, PEDESTRIAN" = "Pedestrian",
+                                   "OTHER, OTHER CONVEYANCE" = "Other",
+                                   "BICYCLIST, OTHER" = "Bicyclist",
+                                   "BICYCLIST, PEDESTRIAN" = "Bicyclist",
+                                   "OTHER CONVEYANCE, PEDESTRIAN" = "Pedestrian",
+                                   "Occupant of Motor Vehicle Not in Transport" = "Unknown", 
+                                   "Occupant Of a Non-Motor Vehicle Transportation Device" = "Unknown",
+                                   "Unknown, Wheelchair (electric)" = "Unknown",
+                                   .default = "Other",
+    )
+  )
+
+```
+
+```{r}
+unique(combined_data4$route_type2)
+```
+
+```{r}
+table(combined_data4$related_non_motorist2)
+
+```
+
+```{r}
+
+combined_data5 <- combined_data4 %>%
+  mutate(
+    related_non_motorist2 = recode(related_non_motorist2,
+      "Occupant of Motor Vehicle Not in Transport, Pedestrian" = "Pedestrian",  # Combine into Pedestrian
+      "OTHER PEDALCYCLIST" = "Bicyclist",  
+      "OTHER, PEDESTRIAN" = "Pedestrian",  
+      "OTHER CONVEYANCE, PEDESTRIAN" = "Pedestrian", 
+      "OTHER" = "Other", 
+      "MACHINE OPERATOR/RIDER" = "Other", 
+      "IN ANIMAL-DRAWN VEH" = "Unknown",  
+      "Unknown Type Of Non-Motorist" = "Unknown",  
+      "Unknown" = "Unknown",  
+      "Scooter (electric)" = "Scooter",  
+      "Scooter (non-Electric)" = "Scooter",  
+      "Wheelchair (electric)" = "Wheelchair",  
+      "Wheelchair (non-electric)" = "Wheelchair", 
+      "Pedestrian" = "Pedestrian",  
+      "BICYCLIST" = "Bicyclist",  
+      "Cyclist (non-electric)" = "Bicyclist",  
+      "Cyclist (Electric)" = "Bicyclist",  
+      "BICYCLIST, OTHER" = "Bicyclist",  
+      "BICYCLIST, PEDESTRIAN" = "Bicyclist" 
+    )
+  )
+
+# Verify the results
+table(combined_data5$related_non_motorist2)
+
+```
+
+```{r}
+
+combined_data6 <- combined_data5 %>%
+  mutate(
+    route_type2 = recode(route_type2,
+                         "County" = "County",  # Keep County as it is
+                         "Other Public Roadway" = "Public Roads",
+                         "Maryland (State)" = "Maryland state",  
+                         "US (State)" = "Maryland state",  
+                         "Municipality" = "Public Roads",
+                         "Ramp" = "Government", 
+                         "Government" = "Government", 
+                         "Interstate (State)" = "State Roads",
+                         "Service Road" = "Public Roads",
+                         "Maryland (State) Route" = "Maryland state",
+                         "Private Route" = "Public Roads",  
+                         "County Route" = "County",  
+                         "Local Route" = "County",  
+                         "Municipality Route" = "Public Roads",
+                         "Bicycle Route" = "Bicycle Route", 
+                         "Crossover" = "Bicycle Route",  
+                         "Government Route" = "Government",  
+                         "Spur" = "Unknown",  
+                         "Private Roads" = "Public Roads",  
+                         "Special Routes" = "Public Roads")
+    )
+
+```
+
+```{r}
+unique(combined_data6$route_type2)
+```
+
+```{r}
+combined_data6 <- combined_data6 %>%
+  mutate(route_type2 = recode(route_type2,
+                              `""` = "Unknown",  # <- Fix for empty string
+                              "County" = "County",
+                              "Other Public Roadway" = "Public Roads",
+                              "Maryland (State)" = "Maryland state",  
+                              "US (State)" = "Maryland state",  
+                              "Municipality" = "Public Roads",
+                              "Ramp" = "Government", 
+                              "Government" = "Government", 
+                              "Interstate (State)" = "State Roads",
+                              "Service Road" = "Public Roads",
+                              "Maryland (State) Route" = "Maryland state",
+                              "Private Route" = "Public Roads",  
+                              "County Route" = "County",  
+                              "Local Route" = "County",  
+                              "Municipality Route" = "Public Roads",
+                              "Bicycle Route" = "Bicycle Route", 
+                              "Crossover" = "Bicycle Route",  
+                              "Government Route" = "Government",  
+                              "Spur" = "Public Roads",  
+                              "Private Roads" = "Public Roads",  
+                              "Special Routes" = "Public Roads"
+  ))
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Step 1: Filter data with valid route type and non-motorist info
+non_motorist_data <- combined_data6 %>%
+  filter(!is.na(route_type2), route_type2 != "", 
+         !is.na(related_non_motorist2), related_non_motorist2 != "")
+
+# Step 2: Count by route type and non-motorist type
+route_type_counts <- non_motorist_data %>%
+  count(route_type2, related_non_motorist2)
+
+# Step 3: Reorder so the route types with most crashes appear at the bottom
+route_type_totals <- route_type_counts %>%
+  group_by(route_type2) %>%
+  summarise(total = sum(n)) %>%
+  arrange(desc(total))  # Descending order for highest at bottom
+
+# Merge and reorder factor levels
+route_type_counts <- route_type_counts %>%
+  left_join(route_type_totals, by = "route_type2") %>%
+  mutate(route_type2 = factor(route_type2, levels = route_type_totals$route_type2))
+
+# Step 4: Plot
+ggplot(route_type_counts, aes(x = n, y = route_type2, fill = related_non_motorist2)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Non-Motorist Crash Count by Route Type",
+    x = "Crash Count",
+    y = "Route Type",
+    fill = "Non-Motorist Type"
+  ) +
+  theme_minimal()
+
+```
+
+## 6- **How does the presence of alcohol or drugs affect crash severity for drivers ?**
+
+```{r}
+unique(combined_data$driver_substance_abuse2)
+```
+
+```{r}
+# Recode into 2 categories: 2 = substance use, 1 = none or unknown
+combined_data$substance_use_category <- ifelse(
+  combined_data$driver_substance_abuse2 %in% c(
+    "ALCOHOL PRESENT", 
+    "ALCOHOL CONTRIBUTED", 
+    "ILLEGAL DRUG PRESENT", 
+    "ILLEGAL DRUG CONTRIBUTED", 
+    "COMBINED SUBSTANCE PRESENT", 
+    "MEDICATION PRESENT", 
+    "ALCOHOL PRESENT, NONE DETECTED", 
+    "ALCOHOL CONTRIBUTED, NONE DETECTED", 
+    "COMBINED SUBSTANCE PRESENT, NONE DETECTED", 
+    "MEDICATION PRESENT, NONE DETECTED"
+  ),
+  2,  # Category for substance use
+  1   # Category for none detected, unknown, or all other
 )
 
 ```
 
-### Comments : 
-
-It is not surprising that Toyota has the highest number of accidents. This is not because Toyota vehicles are inherently more prone to accidents, but because they are more commonly owned in Maryland. Many adults recommend Toyotas to teenagers, which likely increases the number of these vehicles on the road. On the other hand, cars like Dodge and Lexus are less likely to be involved in accidents simply because fewer people drive them.
-
-### 5-Are there specific areas with a high concentration of crashes involved non-motorists ? 
-
 ```{r}
-library(dplyr)
-library(plotly)
+# See how it was recoded
+table(combined_data$substance_use_category)
 
-# Clean the data (remove NAs and ensure numeric values)
-cleaned_data <- combined_data %>%
-  filter(!is.na(longitude1), !is.na(latitude1)) %>%
-  filter(is.numeric(longitude1), is.numeric(latitude1)) %>%
-  mutate(road_name1 = ifelse(is.na(road_name1), "Unknown Road", road_name1))  # Replace NAs with "Unknown Road"
-
-# Make sure you have a Mapbox access token (you can get it from https://www.mapbox.com/)
-mapbox_token <- "YOUR_MAPBOX_ACCESS_TOKEN"
-
-# Interactive map using scattermapbox
-p <- plot_ly(data = cleaned_data, 
-             type = "scattermapbox", 
-             mode = "markers", 
-             lon = ~longitude1, 
-             lat = ~latitude1, 
-             text = ~road_name1, 
-             hoverinfo = "text", 
-             marker = list(size = 5, color = "yellow", opacity = 0.7)) %>%
-  layout(
-    title = "Density of Non-Motorist Crashes by Location",
-    mapbox = list(
-      style = "white-bg", # Choose a map style, e.g., "streets", "light", "dark"
-      center = list(lon = mean(cleaned_data$longitude1), lat = mean(cleaned_data$latitude1)),
-      zoom = 10,
-      accesstoken = mapbox_token
-    )
-  )
-
-# Show the plot
-p
-
+# Preview the mapping
+head(combined_data[, c("driver_substance_abuse2", "substance_use_category")])
 
 ```
 
 ```{r}
+unique(combined_data$injury_severity1)
+
+```
+
+```{r}
+combined_data$severe_injury <- ifelse(
+  combined_data$injury_severity1 %in% c(
+    "SUSPECTED SERIOUS INJURY", 
+    "Suspected Serious Injury", 
+    "POSSIBLE INJURY", 
+    "Possible Injury"
+  ),
+  1,  # Serious injury
+  0   # Not serious
+)
+
+```
+
+```{r}
+table(combined_data$injury_severity1, combined_data$severe_injury)
+
+```
+
+total serious injury 10+128+17+1
+
+```{r}
+# Create the 2x2 contingency table
+table_data <- table(combined_data$substance_use_category, combined_data$severe_injury)
+table_data
+
+```
+
+```{r}
+# Calculate the odds ratio
+odds_ratio <- (8 / 80) / (148 / 5824)
+odds_ratio
+
+```
+
+**7- Are we able to locate accidents that involve non-motorists from the map?**
+
+```{r}
 library(leaflet)
 # Create a leaflet map
-map <- leaflet(data = cleaned_data) %>%
+map <- leaflet(data = combined_data) %>%
   addProviderTiles("CartoDB.Positron") %>%  # You can change the style here (e.g., "CartoDB.Positron", "Stamen.Toner", etc.)
   addMarkers(
     ~longitude1, ~latitude1,  # Longitude and Latitude from your data
@@ -411,9 +699,11 @@ map <- leaflet(data = cleaned_data) %>%
     label = ~road_name1,      # Label will also show on hover
     clusterOptions = markerClusterOptions()  # Cluster the markers for better visibility
   ) %>%
-  setView(lng = mean(cleaned_data$longitude1), lat = mean(cleaned_data$latitude1), zoom = 10)  # Center the map
+  setView(lng = mean(combined_data$longitude1), lat = mean(combined_data$latitude1), zoom = 10)  # Center the map
 
 # Show the map
 map
 
 ```
+
+## 
