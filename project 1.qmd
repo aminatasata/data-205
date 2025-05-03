@@ -71,7 +71,7 @@ table(combined_data$injury_severity1)
 
 ```
 
-## Remove majuscule and n/a:
+## Remove majuscule
 
 ```{r}
 combined_data$weather_clean <- tolower(combined_data$weather1)
@@ -81,7 +81,7 @@ combined_data$weather_clean <- tolower(trimws(combined_data$weather1))
 
 # Now recode the values properly
 combined_data$weather_clean <- dplyr::recode(combined_data$weather_clean,
-  "clear" = "CLEANr",
+  "clear" = "CLEAR",
   "cloudy" = "CLOUDY",
   "rain" = "RAIN",
   "raining" = "RAIN",
@@ -102,10 +102,14 @@ combined_data$weather_clean <- dplyr::recode(combined_data$weather_clean,
 
 ```
 
+## remove Na
+
 ```{r}
 
 combined_data <- combined_data[!is.na(combined_data$weather_clean), ]
 ```
+
+## modify injury type name 
 
 ```{r}
 combined_data$injury_clean <- tolower(combined_data$injury_severity1)
@@ -149,9 +153,15 @@ ggplot(combined_data, aes(x = weather_clean, fill = injury_clean)) +
 
 ```
 
-Interpretation : based on this table, we know that
+## Analysis : 
 
-## 2- Do crashes that occur at night or in low light conditions result in more injuries ?
+The bar plot shows the relationship between weather conditions and injury severity in traffic accidents. Each bar represents a different weather condition, and the colors show the proportion of injury types. The pink color, which represents “No Injury,” dominates most weather conditions. Some weather types, like “WIND” and “FREEZING RAIN,” show more of the other colors, meaning more injuries. Overall, the graph helps us compare how often different types of injuries happen depending on the weather.
+
+## Interpretation : 
+
+Based on the bar plot, we can see that during windy weather, minor accidents happen. In addition, during fog, cloudy, and other weather conditions, possible injuries occur in crash accidents. More serious accidents happen during freezing rain. The type of injury is different depending on the weather condition. According to this result, weather is one of the factors that can influence crash accidents.
+
+## 2- Do crashes that occur at night based light conditions result in more injuries ?
 
 Before we do that, we will start to a binary column where 1 means that the injury was severe, and 0 when the injury is minor
 
@@ -160,7 +170,7 @@ combined_data$injury_severity_binary <- ifelse(combined_data$injury_clean == "Se
 table(combined_data$injury_clean)
 ```
 
-### removing lowercase:
+### removing lowercase for light
 
 ```{r}
 combined_data2 <- combined_data %>%
@@ -170,6 +180,8 @@ combined_data2 <- combined_data %>%
 ```
 
 ### Create a heatmap for light conditions vs. injury severity
+
+### let's start by renaming the element in our column. 
 
 ```{r}
 heatmap_data <- combined_data2 %>%
@@ -196,7 +208,10 @@ combined_data3 <- combined_data %>%
 
 table(combined_data$light1_clean)
 
+
 ```
+
+## Heatmap of Injury Severity by Light Condition
 
 ```{r}
 heatmap_data <- combined_data3 %>%
@@ -214,12 +229,22 @@ ggplot(heatmap_data, aes(x = light1_clean, y = injury_clean, fill = n)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+## Analysis : 
+
+The heatmap shows how injury severity in crash accidents is related to different light conditions. Each square shows the number of cases for a specific injury level and light condition, with colors from yellow to red. Most crashes with no injury happened during daylight, as shown by the bright red square. Minor, possible, and serious injuries also happened mostly during daylight, but with fewer cases (yellow squares).
+
+## Interpretation:
+
+This heatmap shows that most crashes happen in daylight, but injuries can still happen in all light conditions. This could mean that even though daylight gives better visibility, it does not completely prevent accidents or injuries. It may also mean that more people drive during the day, which leads to more crashes. Dark conditions still show injury cases, so driving at night still carries risk. The graph also shows that light condition is related to how often and how severe injuries are. In sum, light condition is one factor that can influence crash injuries.
+
 ## 3- Do you think wheather condition play a role in an accident involving non-motorists?
 
 ```{r}
 table(combined_data$weather1)
 
 ```
+
+## Rename my weather1 column 
 
 ```{r}
 combined_data$weather1 <- tolower(trimws(combined_data$weather1))
@@ -242,12 +267,18 @@ table(combined_data$weather1_clean)
 
 ```
 
+## let's check this table
+
 ```{r}
 table(combined_data$related_non_motorist2, combined_data$weather1_clean)
 
 ```
 
 ### Representation of the number of accident related to non- motorists.
+
+### let's load the libraries
+
+## Note: to insert the picture, I asked chat gpt for help to insert the image
 
 ```{r}
 
@@ -263,6 +294,8 @@ img <- readJPEG("C:/Users/satad/Pictures/Screenshots/car-accident-data205.jpg")
 g <- rasterGrob(img, width = unit(1, "npc"), height = unit(1, "npc"), interpolate = TRUE)
 
 ```
+
+## Represtion of a bar graph representing the number of accident that involves non-motorist based on weather condition 
 
 ```{r}
 ggplot(non_motorist_weather, aes(x = weather1_clean, y = count)) +
@@ -282,16 +315,34 @@ ggplot(non_motorist_weather, aes(x = weather1_clean, y = count)) +
 
 ```
 
+## Analysis : 
+
+The bar chart represent the number of non-motorist accidents under different weather conditions. The tallest bar is for clear weather, showing that the most non-motorist accidents happened when the weather was clear. rain, and cloudy conditions also had some non-motorist accidents but far fewer than in clear weather. fog, snow, wind, and others weather types had very low accident counts. Each bar represents the number of non-motorist accidents for each specific weather type.
+
+## Interpretation : 
+
+The chart suggests that clear weather does not prevent accidents involving non-motorists. In fact, more of these accidents happen during clear weather, possibly because more people are outside walking or biking when the weather is nice. Bad weather like fog, snow, and wind shows fewer non-motorist crashes, which may be because fewer people are outside in those conditions. This means that while dangerous weather can affect driving, non-motorist accidents are more common when the weather is good. Drivers should still be alert for pedestrians and bicyclists even when the weather is clear.
+
+## let's do a chi-square test : 
+
 ```{r}
 # Simplify to yes/no: was a non-motorist involved
 combined_data$non_motorist_involved <- ifelse(!is.na(combined_data$related_non_motorist2), "Yes", "No")
 
 weather_vs_non_motorist <- table(combined_data$weather1_clean, combined_data$non_motorist_involved)
-
-# Chi-square test
 chisq.test(weather_vs_non_motorist)
 
 ```
+
+## Analysis : 
+
+The Chi-square test was used to check the relationship between weather conditions and non-motorist involvement in crashes. The test returned a very high Chi-square value of 19912 with 6 degrees of freedom. The p-value was less than 2.2e-16, which will help us interpret the result.
+
+## Interpretation : 
+
+This result means there is a strong relationship between weather and whether a non-motorist was involved in an accident.(p\< 0.05)We can reject the idea that weather and non-motorist involvement are unrelated. For example, clear weather had the highest number of non-motorist accidents, likely because more people are outside. Even though accidents happen in all types of weather, this result shows the pattern is not random. Therefore, weather is an important factor to consider when studying traffic safety for non-motorists.
+
+## Modify the name of non-motorist name
 
 ```{r}
 combined_data$non_motorist_clean <- tolower(trimws(combined_data$related_non_motorist2))
@@ -343,12 +394,26 @@ ggplot(dot_data, aes(x = weather1_clean, y = non_motorist_clean, size = count, f
 
 ```
 
+## Analysis : 
+
+The bubble plot visualizes non-motorist crash counts by weather condition and non-motorist type. The size and color intensity of the bubbles represent the volume of crashes, with larger and darker bubbles indicating higher crash frequencies. Pedestrians experienced the highest number of crashes, particularly during clear weather, followed by cloudy and rainy conditions. Bicyclist crashes were also notable in clear weather, while wheelchair and scooter-related crashes were minimal across all weather types.
+
+## Interpretation:
+
+\
+
+This visualization suggests that clear weather is associated with the highest number of non-motorist crashes, which may be due to increased outdoor activity and road use. Pedestrians are the most vulnerable group, likely because they are more frequently present on roadways compared to other non-motorist types. The low number of crashes in poor weather like fog, snow, and wind could indicate reduced non-motorist presence or more cautious driving behaviors in such conditions. The data highlights the need for enhanced pedestrian safety measures, especially in favorable weather conditions when road use is higher.
+
 ## 4- How does the vehicle model affect the likelihood of a crash occuring under different speed limits ?
+
+### let's see the type of car named
 
 ```{r}
 unique(combined_data$vehicle_make)
 
 ```
+
+## rename all the vehicle names:0
 
 ```{r}
 combined_data$vehicle_make <- with(combined_data, case_when(
@@ -371,15 +436,17 @@ unique(combined_data$vehicle_make)
 
 ```
 
+## i will select the top 10 car , make sure than we are focussing on a speed limit above or equal to 25.
+
+## Note to make my graph interactive , I get help by chatgpt. Chat gpt gave me the library to load , and ggplotly
+
 ```{r}
 library(plotly)
-# Step 1: Select top 8 vehicle makes (most frequent)
 top_makes <- combined_data %>%
   count(vehicle_make, sort = TRUE) %>%
   slice_head(n = 10) %>%
   pull(vehicle_make)
 
-# Step 2: Prepare data (with min and max year)
 heatmap_data <- combined_data %>%
   filter(
     vehicle_make %in% top_makes,
@@ -399,7 +466,6 @@ heatmap_data <- combined_data %>%
     year_range = paste0("Oldest: ", min_year, " | Newest: ", max_year)
   )
 
-# Step 3: Create base ggplot
 p <- ggplot(heatmap_data, aes(
   x = factor(speed_limit),
   y = vehicle_make,
@@ -423,17 +489,28 @@ p <- ggplot(heatmap_data, aes(
     plot.title = element_text(hjust = 0.5)
   )
 
-# Step 4: Convert to interactive Plotly plot
 ggplotly(p, tooltip = "text")
 
 ```
 
+## Analysis : 
+
+The heatmap displays crash counts based on vehicle make and speed limit categories. Darker shades represent higher crash frequencies, with the darkest cells indicating counts close to 500. The "other" vehicle make category shows the highest crash counts, particularly in the 30 - 40 mph speed limit range. Toyota, Honda, and Nissan also have similar crash counts in this same speed range, while it decreases at higher speed limits.
+
+## Interpretation : 
+
+This heatmap reveals that the majority of vehicle crashes in Montgomery County happen at moderate speed limits, particularly between 30 and 40 mph, which aligns with typical speed zones in residential and commercial areas. The "other" category shows the highest number of crash incidents, possibly representing a wide range of less common or unlisted vehicle brands. Toyota, Honda, and Nissan also show notable crash involvement, which could reflect their high usage across the county. The reduced crash counts at higher speed limits may be due to fewer roads in the county allowing those speeds or more cautious driving behavior in such zones. The absence of crashes for certain makes at 50 -55 mph could indicate either limited exposure in those areas or a lack of reporting. These findings suggest that traffic safety efforts in Montgomery County should focus on mid-speed zones and common vehicle brands to effectively reduce crash risks.
+
 ### 5-Are there specific areas with a high concentration of crashes involved non-motorists ?
+
+### let's see the type of non motorist we have here :
 
 ```{r}
 unique(combined_data$related_non_motorist2)
 
 ```
+
+### lat's rename them to nake it simple
 
 ```{r}
 
@@ -471,6 +548,8 @@ combined_data4 <- combined_data %>%
 
 ```
 
+### What types of route do we have in this data set ?
+
 ```{r}
 unique(combined_data4$route_type2)
 ```
@@ -480,12 +559,14 @@ table(combined_data4$related_non_motorist2)
 
 ```
 
+## second attempt cleaning : 
+
 ```{r}
 
 combined_data5 <- combined_data4 %>%
   mutate(
     related_non_motorist2 = recode(related_non_motorist2,
-      "Occupant of Motor Vehicle Not in Transport, Pedestrian" = "Pedestrian",  # Combine into Pedestrian
+      "Occupant of Motor Vehicle Not in Transport, Pedestrian" = "Pedestrian",
       "OTHER PEDALCYCLIST" = "Bicyclist",  
       "OTHER, PEDESTRIAN" = "Pedestrian",  
       "OTHER CONVEYANCE, PEDESTRIAN" = "Pedestrian", 
@@ -507,10 +588,12 @@ combined_data5 <- combined_data4 %>%
     )
   )
 
-# Verify the results
+
 table(combined_data5$related_non_motorist2)
 
 ```
+
+## Let's do the same for route_type
 
 ```{r}
 
@@ -610,14 +693,23 @@ ggplot(route_type_counts, aes(x = n, y = route_type2, fill = related_non_motoris
 
 ```
 
+## Analysis : 
+
+This bar chart presents the total number of non-motorist crashes by route type in Montgomery County, . County and Maryland state roads present for the highest crash counts, followed by public roads and government roads. Pedestrians make up the largest portion of non-motorist crashes across most route types, especially on county and state roads. Bicyclists also experience a substantial number of crashes, particularly on county routes.
+
+## Interpretation : 
+
+According to the graph, the non-motorist crashes are most prevalent on county and Maryland state roads in Montgomery County, likely due to higher traffic volumes and pedestrian activity in those areas. Pedestrians are the most frequently affected group, indicating a need for improved pedestrian safety infrastructure and enforcement. Bicyclist-related crashes are also common on these same roads, which may reflect insufficient bike lanes or road-sharing measures. The low crash counts on state roads, bicycle routes, and government roads could indicate fewer non-motorist users or better safety designs. Overall, these patterns highlight the importance of targeted safety interventions on county and state-maintained roads to reduce crash risks for pedestrians and bicyclists.
+
 ## 6- **How does the presence of alcohol or drugs affect crash severity for drivers ?**
 
 ```{r}
 unique(combined_data$driver_substance_abuse2)
 ```
 
+## Recode into two categories: 2 = substance use, 1 = none substance use 
+
 ```{r}
-# Recode into 2 categories: 2 = substance use, 1 = none or unknown
 combined_data$substance_use_category <- ifelse(
   combined_data$driver_substance_abuse2 %in% c(
     "ALCOHOL PRESENT", 
@@ -630,18 +722,16 @@ combined_data$substance_use_category <- ifelse(
     "ALCOHOL CONTRIBUTED, NONE DETECTED", 
     "COMBINED SUBSTANCE PRESENT, NONE DETECTED", 
     "MEDICATION PRESENT, NONE DETECTED"
-  ),
-  2,  # Category for substance use
-  1   # Category for none detected, unknown, or all other
-)
-
+  ), 
+  2,
+  1)
 ```
 
+## Let's take a look at the new table
+
 ```{r}
-# See how it was recoded
 table(combined_data$substance_use_category)
 
-# Preview the mapping
 head(combined_data[, c("driver_substance_abuse2", "substance_use_category")])
 
 ```
@@ -651,6 +741,8 @@ unique(combined_data$injury_severity1)
 
 ```
 
+### Consider 1 as a serious injury ,  and 0 as no injury
+
 ```{r}
 combined_data$severe_injury <- ifelse(
   combined_data$injury_severity1 %in% c(
@@ -659,8 +751,8 @@ combined_data$severe_injury <- ifelse(
     "POSSIBLE INJURY", 
     "Possible Injury"
   ),
-  1,  # Serious injury
-  0   # Not serious
+  1,  
+  0 
 )
 
 ```
@@ -670,17 +762,17 @@ table(combined_data$injury_severity1, combined_data$severe_injury)
 
 ```
 
-total serious injury 10+128+17+1
+## 2\*2 table
 
 ```{r}
-# Create the 2x2 contingency table
 table_data <- table(combined_data$substance_use_category, combined_data$severe_injury)
 table_data
 
 ```
 
+## Calculate the odds ratio: 
+
 ```{r}
-# Calculate the odds ratio
 odds_ratio <- (8 / 80) / (148 / 5824)
 odds_ratio
 
