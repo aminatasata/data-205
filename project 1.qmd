@@ -63,7 +63,7 @@ rename_columns <- function(name) {
 View(combined_data)
 ```
 
-## **1- Is there a relationship between weather conditions and the likelihood of severe injury in a crash?**
+## **1- Is there a relationship between weather conditions and  injury in a crash?**
 
 ```{r}
 table(combined_data$weather1)
@@ -180,7 +180,7 @@ The bar plot shows the relationship between weather conditions and injury severi
 
 Based on the bar plot, we can see that during windy weather, minor accidents happen. In addition, during fog, cloudy, and other weather conditions, possible injuries occur in crash accidents. More serious accidents happen during freezing rain. The type of injury is different depending on the weather condition. According to this result, weather is one of the factors that can influence crash accidents.
 
-## 2- Do crashes that occur at night based light conditions result in more injuries ?
+## 2- light vs injury severity
 
 Before we do that, we will start to a binary column where 1 means that the injury was severe, and 0 when the injury is minor
 
@@ -608,7 +608,7 @@ unique(combined_data$related_non_motorist2)
 
 ```
 
-### lat's rename them to nake it simple
+### let's rename them to make it simple
 
 ```{r}
 
@@ -646,7 +646,7 @@ combined_data4 <- combined_data %>%
 
 ```
 
-### What types of route do we have in this data set ?
+### What types of route do we have in this data set ? 
 
 ```{r}
 unique(combined_data4$route_type2)
