@@ -139,7 +139,7 @@ injury_props <- prop.table(table(combined_data$injury_clean))
 # Convert to data frame for better display or plotting
 injury_df <- as.data.frame(injury_props)
 
-# Optional: rename columns for clarity
+# rename columns for clarity
 colnames(injury_df) <- c("Injury_Severity", "Proportion")
 
 # Multiply proportions by 100 to get percentages
